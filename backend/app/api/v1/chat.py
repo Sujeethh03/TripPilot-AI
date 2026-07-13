@@ -104,13 +104,50 @@ async def _persist_turn(
         await session.commit()
 
 
-async def _run_turn(ws: WebSocket, content: str, config: RunnableConfig, trip_id: str) -> None:
+def _trip_context(trip: Trip) -> str | None:
+    """A one-line summary of the details the traveller entered in the booking
+    form, injected into the conversation so the agents don't re-ask for them."""
+    parts: list[str] = []
+    if trip.destination:
+        parts.append(f"Destination: {trip.destination}")
+    if trip.start_date and trip.end_date:
+        days = (trip.end_date - trip.start_date).days + 1
+        parts.append(f"Dates: {trip.start_date} to {trip.end_date} ({days} days)")
+    elif trip.start_date:
+        parts.append(f"Start date: {trip.start_date}")
+    if trip.budget_inr:
+        parts.append(f"Budget: ₹{trip.budget_inr}")
+    if not parts:
+        return None
+    return (
+        "The traveller already provided these trip details in the booking form; "
+        "treat them as their stated request and do not ask for them again unless "
+        "they change. " + "; ".join(parts) + "."
+    )
+
+
+async def _run_turn(
+    ws: WebSocket,
+    content: str,
+    config: RunnableConfig,
+    trip_id: str,
+    trip_context: str | None,
+) -> None:
     graph = ws.app.state.graph
     assistant_texts: list[str] = []
     events_log: list[dict[str, Any]] = []
+
+    # On the first turn of a fresh thread, seed the form details as context so
+    # Intake merges them with whatever the user types (rather than re-asking).
+    inputs: list[dict[str, str]] = []
+    snapshot = await graph.aget_state(config)
+    if trip_context and not snapshot.values.get("messages"):
+        inputs.append({"role": "system", "content": trip_context})
+    inputs.append({"role": "user", "content": content})
+
     try:
         async for chunk in graph.astream(
-            {"messages": [{"role": "user", "content": content}]},
+            {"messages": inputs},
             config=config,
             stream_mode="updates",
         ):
@@ -135,9 +172,12 @@ async def _run_turn(ws: WebSocket, content: str, config: RunnableConfig, trip_id
 async def chat_ws(
     ws: WebSocket, trip_id: str, token: Annotated[str | None, Query()] = None
 ) -> None:
-    if await _authorize(trip_id, token) is None:
+    trip = await _authorize(trip_id, token)
+    if trip is None:
         await ws.close(code=WS_UNAUTHORIZED)
         return
+    # Snapshot the form details now, while the trip's attributes are loaded.
+    trip_context = _trip_context(trip)
     await ws.accept()
     config: RunnableConfig = {"configurable": {"thread_id": trip_id}}
     try:
@@ -146,6 +186,6 @@ async def chat_ws(
             if data.get("type") != "user_message":
                 await ws.send_json({"type": "error", "message": "expected type=user_message"})
                 continue
-            await _run_turn(ws, data.get("content", ""), config, trip_id)
+            await _run_turn(ws, data.get("content", ""), config, trip_id, trip_context)
     except WebSocketDisconnect:
         return

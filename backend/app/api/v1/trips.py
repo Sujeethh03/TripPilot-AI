@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import Response
 
 from app.api.deps import CurrentUser, SessionDep
@@ -80,9 +80,24 @@ async def update_trip(
 
 
 @router.delete("/{trip_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_trip(trip_id: UUID, user: CurrentUser, session: SessionDep) -> None:
+async def delete_trip(
+    trip_id: UUID, user: CurrentUser, session: SessionDep, request: Request
+) -> None:
+    """Permanently delete a trip and all of its data: the trip row, its
+    conversation + messages (via ON DELETE CASCADE), and the LangGraph
+    conversation checkpoint (keyed by thread_id == trip id)."""
     trip = await _get_owned_trip(trip_id, user, session)
-    await TripRepository(session).soft_delete(trip)
+
+    # Purge the graph checkpoint first (best-effort; its own store/connection).
+    graph = getattr(request.app.state, "graph", None)
+    checkpointer = getattr(graph, "checkpointer", None) if graph is not None else None
+    if checkpointer is not None and hasattr(checkpointer, "adelete_thread"):
+        try:
+            await checkpointer.adelete_thread(str(trip_id))
+        except Exception:  # never let checkpoint cleanup block the DB delete
+            pass
+
+    await TripRepository(session).hard_delete(trip)
     await session.commit()
 
 

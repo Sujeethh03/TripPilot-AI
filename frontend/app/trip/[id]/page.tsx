@@ -3,7 +3,7 @@
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Composer } from "@/components/chat/composer";
@@ -23,6 +23,8 @@ function TripView({ tripId }: { tripId: string }) {
 
   const seed = useChatStore((s) => s.seed);
   const reset = useChatStore((s) => s.reset);
+  const sendUserMessage = useChatStore((s) => s.sendUserMessage);
+  const kickedOff = useRef(false);
 
   // Seed the store from server history once it (and the trip) load.
   useEffect(() => {
@@ -31,6 +33,18 @@ function TripView({ tripId }: { tripId: string }) {
 
   // Clear live state when leaving the trip.
   useEffect(() => reset, [tripId, reset]);
+
+  // Fresh trip opened via "Create & start planning" (?start=1): kick off the
+  // first turn automatically so the form details plan straight away.
+  useEffect(() => {
+    if (kickedOff.current || !connected || !messages || messages.length > 0) return;
+    if (new URLSearchParams(window.location.search).get("start") !== "1") return;
+    const content = "Let's plan my trip.";
+    if (send(content)) {
+      kickedOff.current = true;
+      sendUserMessage(content);
+    }
+  }, [connected, messages, send, sendUserMessage]);
 
   if (isLoading) {
     return (

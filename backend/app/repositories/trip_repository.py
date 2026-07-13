@@ -46,3 +46,10 @@ class TripRepository:
         # Naive UTC to match the other TIMESTAMP WITHOUT TIME ZONE columns.
         trip.deleted_at = datetime.now(UTC).replace(tzinfo=None)
         await self._session.flush()
+
+    async def hard_delete(self, trip: Trip) -> None:
+        """Permanently remove the trip. Conversations + messages cascade via
+        their ON DELETE CASCADE foreign keys. The LangGraph checkpoint (keyed by
+        thread_id) is deleted separately by the endpoint."""
+        await self._session.delete(trip)
+        await self._session.flush()

@@ -45,7 +45,8 @@ export function NewTripDialog() {
       });
       reset();
       setOpen(false);
-      router.push(`/trip/${trip.id}`);
+      // ?start=1 tells the trip view to auto-kick planning from the form data.
+      router.push(`/trip/${trip.id}?start=1`);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Could not create trip");
     }
