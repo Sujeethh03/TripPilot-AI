@@ -28,8 +28,14 @@ class Settings(BaseSettings):
 
     # Secrets / external services (populated per-environment; unset for now)
     openai_api_key: str = ""
+    openweather_key: str = ""
     database_url: str = ""
     redis_url: str = ""
+
+    # OpenAI model routing (PROJECT_PLAN §9 cost controls): cheap model for
+    # routing/extraction, capable model for planning/synthesis.
+    model_router: str = "gpt-4o-mini"
+    model_planner: str = "gpt-4o"
 
 
 @lru_cache

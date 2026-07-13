@@ -20,6 +20,13 @@ class DaySkeleton(BaseModel):
     meal_slots: list[str] = Field(default_factory=list)
 
 
+class DaySkeletonPlan(BaseModel):
+    """LLM output wrapper for the Planner (structured outputs need an object,
+    not a bare list)."""
+
+    days: list[DaySkeleton] = Field(default_factory=list)
+
+
 class ResearchBundle(BaseModel):
     """Researcher output: real data gathered via MCP tools (no LLM).
 

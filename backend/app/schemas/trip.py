@@ -17,6 +17,21 @@ class TripRequest(BaseModel):
     destination: str | None = None
     start_date: date | None = None
     end_date: date | None = None
+    duration_days: int | None = Field(default=None, gt=0)
     budget_inr: int | None = Field(default=None, gt=0)
     party_size: int | None = Field(default=None, gt=0)
+    preferences: list[str] = Field(default_factory=list)
+
+
+class IntakeExtraction(BaseModel):
+    """LLM output contract for the Intake node (kept separate from the domain
+    TripRequest so the model schema stays strict-outputs friendly).
+
+    Every field is optional: the model fills only what the traveller stated.
+    """
+
+    destination: str | None = None
+    duration_days: int | None = None
+    budget_inr: int | None = None
+    party_size: int | None = None
     preferences: list[str] = Field(default_factory=list)
