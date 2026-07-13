@@ -1,11 +1,26 @@
-"""Integration test for the chat WebSocket (LLM boundaries mocked)."""
+"""Integration test for the chat WebSocket (LLM boundaries + auth mocked).
+
+Streaming behaviour is tested here with auth bypassed; the auth/ownership gate
+itself is covered by tests/test_chat_ws_auth.py.
+"""
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
+import app.api.v1.chat as chat
 from app.main import app
+from app.models import Trip
 
 pytestmark = pytest.mark.usefixtures("mock_agent_llms")
+
+
+@pytest.fixture
+def bypass_ws_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _ok(trip_id: str, token: str | None) -> Trip:
+        return Trip()
+
+    monkeypatch.setattr(chat, "_authorize", _ok)
 
 
 def _drain(ws) -> list[dict]:
@@ -17,7 +32,7 @@ def _drain(ws) -> list[dict]:
             return events
 
 
-def test_plan_turn_streams_events() -> None:
+def test_plan_turn_streams_events(bypass_ws_auth: None) -> None:
     with TestClient(app) as client, client.websocket_connect("/ws/trips/ws-1/chat") as ws:
         ws.send_json({"type": "user_message", "content": "5 days kerala 20k"})
         events = _drain(ws)
@@ -31,7 +46,7 @@ def test_plan_turn_streams_events() -> None:
     assert complete["itinerary"]["destination"] == "Kerala"
 
 
-def test_bad_message_type_errors_without_closing() -> None:
+def test_bad_message_type_errors_without_closing(bypass_ws_auth: None) -> None:
     with TestClient(app) as client, client.websocket_connect("/ws/trips/ws-2/chat") as ws:
         ws.send_json({"type": "nonsense"})
         err = ws.receive_json()
@@ -41,3 +56,11 @@ def test_bad_message_type_errors_without_closing() -> None:
         ws.send_json({"type": "user_message", "content": "plan kerala"})
         events = _drain(ws)
         assert events[-1]["type"] == "complete"
+
+
+def test_connection_without_token_is_rejected() -> None:
+    # No auth bypass here: a tokenless connect must be closed before accept.
+    with TestClient(app) as client:
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect("/ws/trips/ws-3/chat") as ws:
+                ws.receive_json()

@@ -11,12 +11,15 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import Response
 
 from app.api.deps import CurrentUser, SessionDep
 from app.models import Trip
 from app.repositories.conversation_repository import ConversationRepository, MessageRepository
 from app.repositories.trip_repository import TripRepository
+from app.schemas.itinerary import Itinerary
 from app.schemas.trip_api import MessageResponse, TripCreate, TripResponse, TripUpdate
+from app.services.pdf import render_itinerary_pdf
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -94,3 +97,21 @@ async def list_messages(
     await _get_owned_trip(trip_id, user, session)  # ownership check
     messages = await MessageRepository(session).list_by_trip(trip_id, limit=limit, offset=offset)
     return [MessageResponse.model_validate(m) for m in messages]
+
+
+@router.get("/{trip_id}/pdf")
+async def export_trip_pdf(trip_id: UUID, user: CurrentUser, session: SessionDep) -> Response:
+    trip = await _get_owned_trip(trip_id, user, session)
+    if trip.itinerary is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Trip has no itinerary to export yet",
+        )
+    itinerary = Itinerary.model_validate(trip.itinerary)
+    pdf = render_itinerary_pdf(itinerary, title=trip.title)
+    filename = f"trip-{trip_id}.pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

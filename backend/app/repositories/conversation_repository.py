@@ -21,6 +21,12 @@ class ConversationRepository:
         await self._session.flush()
         return conversation
 
+    async def get_by_trip(self, trip_id: UUID) -> Conversation | None:
+        result = await self._session.execute(
+            select(Conversation).where(Conversation.trip_id == trip_id)
+        )
+        return result.scalar_one_or_none()
+
 
 class MessageRepository:
     def __init__(self, session: AsyncSession) -> None:

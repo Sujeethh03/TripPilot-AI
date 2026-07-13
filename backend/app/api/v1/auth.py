@@ -5,9 +5,16 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import CurrentUser, SessionDep
+from app.core.google_oauth import verify_google_token
 from app.core.security import create_access_token, hash_password, verify_password
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.schemas.auth import (
+    GoogleAuthRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
 
 router = APIRouter(tags=["auth"])
 
@@ -33,6 +40,29 @@ async def login(body: LoginRequest, session: SessionDep) -> TokenResponse:
         raise _invalid_credentials()
     if not verify_password(body.password, user.hashed_password):
         raise _invalid_credentials()
+    return TokenResponse(access_token=create_access_token(str(user.id)))
+
+
+@router.post("/auth/google", response_model=TokenResponse)
+async def google_auth(body: GoogleAuthRequest, session: SessionDep) -> TokenResponse:
+    identity = verify_google_token(body.id_token)
+    if identity is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google token"
+        )
+
+    repo = UserRepository(session)
+    user = await repo.get_by_google_id(identity.google_id)
+    if user is None:
+        # Link Google to an existing email account, or create a new one.
+        user = await repo.get_by_email(identity.email)
+        if user is not None:
+            user.google_id = identity.google_id
+        else:
+            user = await repo.create_google(
+                email=identity.email, google_id=identity.google_id, name=identity.name
+            )
+    await session.commit()
     return TokenResponse(access_token=create_access_token(str(user.id)))
 
 

@@ -6,10 +6,16 @@ import pytest
 
 from app.agents.nodes.researcher import researcher
 from app.mcp.weather import _extract_text
+from app.schemas.planning import DaySkeleton
 from app.schemas.trip import TripRequest
+from mcp_servers.places.schemas import Place, PlacesResult
 from mcp_servers.weather.schemas import DailyForecast, ForecastResult
 
 _researcher_mod = importlib.import_module("app.agents.nodes.researcher")
+
+
+async def _no_places(query: str, max_results: int = 5) -> None:
+    return None
 
 
 def test_extract_text_from_content_blocks() -> None:
@@ -35,10 +41,38 @@ async def test_researcher_populates_weather(monkeypatch: pytest.MonkeyPatch) -> 
         return forecast
 
     monkeypatch.setattr(_researcher_mod, "fetch_forecast", _fetch)
+    monkeypatch.setattr(_researcher_mod, "search_places", _no_places)
 
     update = await researcher({"trip_request": TripRequest(destination="Kochi")})
     weather = update["research"].weather_by_day
     assert weather["2026-07-14"]["condition"] == "rain"
+
+
+async def test_researcher_populates_places(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fetch(city: str, days: int = 5) -> None:
+        return None
+
+    async def _search(query: str, max_results: int = 5) -> PlacesResult:
+        return PlacesResult(
+            query=query,
+            places=[Place(name="Athirappilly Falls", rating=4.6, lat=10.28, lng=76.56)],
+        )
+
+    monkeypatch.setattr(_researcher_mod, "fetch_forecast", _fetch)
+    monkeypatch.setattr(_researcher_mod, "search_places", _search)
+
+    update = await researcher(
+        {
+            "trip_request": TripRequest(destination="Kerala"),
+            "day_skeletons": [
+                DaySkeleton(day=1, theme="waterfalls", target_areas=["Athirappilly"])
+            ],
+        }
+    )
+    places = update["research"].candidate_places
+    assert any(p["name"] == "Athirappilly Falls" for p in places)
+    # De-dup: the same place across queries appears once.
+    assert len(places) == 1
 
 
 async def test_researcher_no_destination_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -46,6 +80,8 @@ async def test_researcher_no_destination_is_empty(monkeypatch: pytest.MonkeyPatc
         raise AssertionError("should not be called")
 
     monkeypatch.setattr(_researcher_mod, "fetch_forecast", _boom)
+    monkeypatch.setattr(_researcher_mod, "search_places", _no_places)
 
     update = await researcher({"trip_request": TripRequest()})
     assert update["research"].weather_by_day == {}
+    assert update["research"].candidate_places == []

@@ -5,22 +5,109 @@
     <- streamed events: route_decision, agent_update, partial_itinerary,
        validation_report, assistant_message, complete, error
 
+Authentication: the JWT is passed as a `?token=` query param on the connect URL
+(WebSocket clients can't set Authorization headers). The socket is only accepted
+if the token is valid AND the caller owns the trip; otherwise it is closed with
+code 4401 before accept (no distinction between "bad token" and "not your trip",
+mirroring the REST 404 no-leak policy).
+
 The trip id is used as the LangGraph thread id, so each trip's conversation
-resumes from its checkpoint.
+resumes from its checkpoint. After each turn we persist the user + assistant
+messages (with the streamed agent events) and save the latest itinerary onto
+the trip row, so the REST layer (GET /trips/{id} and /messages) reflects the
+live conversation.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from typing import Annotated, Any
+from uuid import UUID
+
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from langchain_core.runnables import RunnableConfig
 
-from app.agents.streaming import complete_event, node_events
+from app.agents.streaming import _dump_itinerary, complete_event, node_events
+from app.core.security import decode_access_token
+from app.db.session import get_sessionmaker
+from app.models import Trip
+from app.repositories.conversation_repository import ConversationRepository, MessageRepository
+from app.repositories.trip_repository import TripRepository
+from app.repositories.user_repository import UserRepository
 
 router = APIRouter()
 
+# Close code for a rejected connection (4000-4999 is the app-defined range).
+WS_UNAUTHORIZED = 4401
 
-async def _run_turn(ws: WebSocket, content: str, config: RunnableConfig) -> None:
+
+async def _authorize(trip_id: str, token: str | None) -> Trip | None:
+    """Return the trip iff the token is valid and the caller owns it, else None.
+
+    Opens its own short-lived session so the connection doesn't hold a DB
+    session open for its whole lifetime (per-turn persistence gets its own).
+    """
+    if not token:
+        return None
+    subject = decode_access_token(token)
+    if subject is None:
+        return None
+    try:
+        user_id = UUID(subject)
+        trip_uuid = UUID(trip_id)
+    except ValueError:
+        return None
+
+    async with get_sessionmaker()() as session:
+        if await UserRepository(session).get_by_id(user_id) is None:
+            return None
+        return await TripRepository(session).get_for_user(trip_uuid, user_id)
+
+
+async def _persist_turn(
+    trip_id: str,
+    user_content: str,
+    assistant_texts: list[str],
+    events: list[dict[str, Any]],
+    itinerary: Any,
+) -> None:
+    """Write the turn's messages and itinerary. No-ops for non-persistent
+    threads (e.g. ad-hoc thread ids that don't map to a stored trip)."""
+    try:
+        trip_uuid = UUID(trip_id)
+    except ValueError:
+        return
+
+    async with get_sessionmaker()() as session:
+        conversation = await ConversationRepository(session).get_by_trip(trip_uuid)
+        if conversation is None:
+            return
+
+        messages = MessageRepository(session)
+        await messages.add(
+            conversation_id=conversation.id,
+            role="user",
+            content=user_content,
+            agent_events=None,
+        )
+        await messages.add(
+            conversation_id=conversation.id,
+            role="assistant",
+            content="\n\n".join(assistant_texts),
+            agent_events={"events": events},
+        )
+
+        if itinerary is not None:
+            trip = await session.get(Trip, trip_uuid)
+            if trip is not None:
+                trip.itinerary = _dump_itinerary(itinerary)
+
+        await session.commit()
+
+
+async def _run_turn(ws: WebSocket, content: str, config: RunnableConfig, trip_id: str) -> None:
     graph = ws.app.state.graph
+    assistant_texts: list[str] = []
+    events_log: list[dict[str, Any]] = []
     try:
         async for chunk in graph.astream(
             {"messages": [{"role": "user", "content": content}]},
@@ -29,16 +116,28 @@ async def _run_turn(ws: WebSocket, content: str, config: RunnableConfig) -> None
         ):
             for node, update in chunk.items():
                 for event in node_events(node, update):
+                    events_log.append(event)
+                    if event["type"] == "assistant_message":
+                        assistant_texts.append(event["content"])
                     await ws.send_json(event)
 
         snapshot = await graph.aget_state(config)
-        await ws.send_json(complete_event(snapshot.values.get("itinerary")))
+        itinerary = snapshot.values.get("itinerary")
+        await ws.send_json(complete_event(itinerary))
     except Exception as exc:  # surface failures to the client, keep socket open
         await ws.send_json({"type": "error", "message": str(exc)})
+        return
+
+    await _persist_turn(trip_id, content, assistant_texts, events_log, itinerary)
 
 
 @router.websocket("/ws/trips/{trip_id}/chat")
-async def chat_ws(ws: WebSocket, trip_id: str) -> None:
+async def chat_ws(
+    ws: WebSocket, trip_id: str, token: Annotated[str | None, Query()] = None
+) -> None:
+    if await _authorize(trip_id, token) is None:
+        await ws.close(code=WS_UNAUTHORIZED)
+        return
     await ws.accept()
     config: RunnableConfig = {"configurable": {"thread_id": trip_id}}
     try:
@@ -47,6 +146,6 @@ async def chat_ws(ws: WebSocket, trip_id: str) -> None:
             if data.get("type") != "user_message":
                 await ws.send_json({"type": "error", "message": "expected type=user_message"})
                 continue
-            await _run_turn(ws, data.get("content", ""), config)
+            await _run_turn(ws, data.get("content", ""), config, trip_id)
     except WebSocketDisconnect:
         return

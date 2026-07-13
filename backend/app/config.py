@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     openweather_key: str = ""
     database_url: str = ""
     redis_url: str = ""
+    # Google OAuth: the frontend's Google Sign-In client id. ID tokens are
+    # accepted only if their audience matches this (unset disables Google auth).
+    google_client_id: str = ""
+    # Google Maps Platform key for the Places + Directions MCP servers.
+    google_maps_key: str = ""
 
     # OpenAI model routing (PROJECT_PLAN §9 cost controls): cheap model for
     # routing/extraction, capable model for planning/synthesis.

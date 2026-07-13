@@ -49,4 +49,23 @@ def server_registry() -> dict[str, dict[str, Any]]:
             "transport": "stdio",
             "env": {**_base_env(), "OPENWEATHER_KEY": settings.openweather_key},
         },
+        # Frankfurter is keyless, so no secret is passed through.
+        "currency": {
+            "command": python,
+            "args": ["-m", "mcp_servers.currency"],
+            "transport": "stdio",
+            "env": _base_env(),
+        },
+        "places": {
+            "command": python,
+            "args": ["-m", "mcp_servers.places"],
+            "transport": "stdio",
+            "env": {**_base_env(), "GOOGLE_MAPS_KEY": settings.google_maps_key},
+        },
+        "directions": {
+            "command": python,
+            "args": ["-m", "mcp_servers.directions"],
+            "transport": "stdio",
+            "env": {**_base_env(), "GOOGLE_MAPS_KEY": settings.google_maps_key},
+        },
     }
