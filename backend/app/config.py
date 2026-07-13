@@ -37,6 +37,21 @@ class Settings(BaseSettings):
     model_router: str = "gpt-4o-mini"
     model_planner: str = "gpt-4o"
 
+    # Conversation memory backend. "memory" (default) keeps state in-process;
+    # "postgres" persists LangGraph checkpoints so conversations survive restarts.
+    checkpointer: Literal["memory", "postgres"] = "memory"
+
+    # Auth (PROJECT_PLAN §5.7). Override jwt_secret per-environment; the default
+    # is for local dev only.
+    jwt_secret: str = "dev-secret-change-me-in-production-please-32b+"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24
+
+    @property
+    def postgres_dsn(self) -> str:
+        """psycopg-style DSN (the checkpointer uses psycopg, not asyncpg)."""
+        return self.database_url.replace("+asyncpg", "")
+
 
 @lru_cache
 def get_settings() -> Settings:
