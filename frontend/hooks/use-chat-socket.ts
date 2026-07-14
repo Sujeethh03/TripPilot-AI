@@ -39,7 +39,10 @@ export function useChatSocket(tripId: string) {
     if (!result.success) return;
     applyEvent(result.data);
     if (result.data.type === "complete" || result.data.type === "error") {
+      // Refresh persisted truth (itinerary + message history) so a later remount
+      // reseeds correctly. Safe mid-session: the trip view seeds only once.
       queryClient.invalidateQueries({ queryKey: queryKeys.trip(tripId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.messages(tripId) });
     }
   });
 

@@ -40,6 +40,8 @@ async def create_trip(body: TripCreate, user: CurrentUser, session: SessionDep) 
         user_id=user.id,
         title=body.title,
         destination=body.destination,
+        origin=body.origin,
+        transport_mode=body.transport_mode,
         start_date=body.start_date,
         end_date=body.end_date,
         budget_inr=body.budget_inr,

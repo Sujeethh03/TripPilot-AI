@@ -15,6 +15,8 @@ class TripRequest(BaseModel):
     """
 
     destination: str | None = None
+    origin: str | None = None  # starting point, if travelling by own transport
+    transport_mode: str | None = None  # driving | transit
     start_date: date | None = None
     end_date: date | None = None
     duration_days: int | None = Field(default=None, gt=0)
@@ -31,6 +33,8 @@ class IntakeExtraction(BaseModel):
     """
 
     destination: str | None = None
+    origin: str | None = None
+    transport_mode: str | None = None
     duration_days: int | None = None
     budget_inr: int | None = None
     party_size: int | None = None

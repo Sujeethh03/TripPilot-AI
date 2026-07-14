@@ -39,6 +39,8 @@ export function NewTripDialog() {
       const trip = await createTrip.mutateAsync({
         destination: values.destination,
         title: values.title || undefined,
+        origin: values.origin || undefined,
+        transport_mode: values.origin ? values.transport_mode || "driving" : undefined,
         start_date: values.start_date || undefined,
         end_date: values.end_date || undefined,
         budget_inr: values.budget_inr,
@@ -75,6 +77,23 @@ export function NewTripDialog() {
           <div className="space-y-2">
             <Label htmlFor="title">Title (optional)</Label>
             <Input id="title" placeholder="Monsoon getaway" {...register("title")} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="origin">Starting from (optional)</Label>
+              <Input id="origin" placeholder="Hyderabad" {...register("origin")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="transport_mode">Transport</Label>
+              <select
+                id="transport_mode"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                {...register("transport_mode")}
+              >
+                <option value="driving">Drive</option>
+                <option value="transit">Bus / Train</option>
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">

@@ -13,10 +13,15 @@ import asyncio
 from typing import Any
 
 from app.agents.state import ConversationState
-from app.mcp.places import search_places
+from app.mcp.directions import get_directions
+from app.mcp.places import search_hotels, search_places
 from app.mcp.weather import fetch_forecast
 from app.schemas.planning import DaySkeleton, ResearchBundle
 from app.schemas.trip import TripRequest
+
+# Google Directions supports these; the form offers drive / transit.
+_ALLOWED_MODES = {"driving", "transit", "walking", "bicycling"}
+_MAX_HOTELS = 4
 
 # Cap searches per turn to keep latency + API cost bounded (§9 cost controls).
 _MAX_PLACE_QUERIES = 5
@@ -68,6 +73,33 @@ async def _gather_places(destination: str, skeletons: list[DaySkeleton]) -> list
     return candidates
 
 
+async def _gather_hotels(destination: str) -> list[dict[str, Any]]:
+    result = await search_hotels(destination, max_results=_MAX_HOTELS)
+    if not result:
+        return []
+    return [
+        {"name": place.name, "area": place.address, "rating": place.rating}
+        for place in result.places
+    ]
+
+
+async def _travel_leg(trip: TripRequest) -> dict[str, Any] | None:
+    """Route from the traveller's starting point to the destination, if given."""
+    if not trip.origin or not trip.destination:
+        return None
+    mode = trip.transport_mode if trip.transport_mode in _ALLOWED_MODES else "driving"
+    result = await get_directions(trip.origin, trip.destination, mode=mode)
+    if result is None or not result.ok:
+        return None
+    return {
+        "origin": result.origin,
+        "destination": result.destination,
+        "mode": result.mode,
+        "distance_km": result.distance_km,
+        "duration_min": result.duration_min,
+    }
+
+
 def _weather_map(forecast: Any) -> dict[str, Any]:
     if forecast is None:
         return {}
@@ -87,14 +119,18 @@ async def researcher(state: ConversationState) -> dict[str, Any]:
         return {"research": ResearchBundle()}
 
     skeletons = state.get("day_skeletons") or []
-    forecast, candidate_places = await asyncio.gather(
+    forecast, candidate_places, hotels, travel_leg = await asyncio.gather(
         fetch_forecast(trip.destination, days=5),
         _gather_places(trip.destination, skeletons),
+        _gather_hotels(trip.destination),
+        _travel_leg(trip),
     )
 
     return {
         "research": ResearchBundle(
             weather_by_day=_weather_map(forecast),
             candidate_places=candidate_places,
+            hotels=hotels,
+            travel_leg=travel_leg,
         )
     }

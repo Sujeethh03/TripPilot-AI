@@ -16,6 +16,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class TripCreate(BaseModel):
     title: str | None = None
     destination: str | None = None
+    origin: str | None = None
+    transport_mode: str | None = None
     start_date: date | None = None
     end_date: date | None = None
     budget_inr: int | None = Field(default=None, gt=0)
@@ -32,6 +34,8 @@ class TripResponse(BaseModel):
     id: UUID
     title: str | None
     destination: str | None
+    origin: str | None
+    transport_mode: str | None
     start_date: date | None
     end_date: date | None
     budget_inr: int | None

@@ -4,6 +4,7 @@ import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 import { ItineraryTimeline } from "@/components/itinerary/itinerary-timeline";
+import { RouteMap } from "@/components/itinerary/route-map";
 import { Button } from "@/components/ui/button";
 import { tripsApi } from "@/lib/api";
 import type { Trip } from "@/lib/schemas";
@@ -56,7 +57,10 @@ export function ItineraryPanel({ trip }: { trip: Trip }) {
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         {itinerary ? (
-          <ItineraryTimeline itinerary={itinerary} budgetInr={trip.budget_inr} />
+          <div className="space-y-4">
+            <RouteMap itinerary={itinerary} />
+            <ItineraryTimeline itinerary={itinerary} budgetInr={trip.budget_inr} />
+          </div>
         ) : (
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Your itinerary will appear here as you plan.

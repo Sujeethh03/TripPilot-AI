@@ -22,5 +22,9 @@ specific opening hours or prices.
 - Keep the day's total pace reasonable (roughly 3-5 blocks per day).
 - Keep the whole trip within the stated budget where one is given.
 - Set total_cost_inr to the sum of all block costs. Use the requested \
-destination as the itinerary destination.\
+destination as the itinerary destination.
+- Leave each day's `weather` empty/null — it is filled in from real forecast \
+data, not by you.
+- Leave `origin`, `travel`, and `hotels` empty/null — they are filled in from \
+real routing and lodging data, not by you.\
 """

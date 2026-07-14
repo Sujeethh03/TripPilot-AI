@@ -19,6 +19,8 @@ export type RegisterForm = z.infer<typeof registerFormSchema>;
 export const newTripFormSchema = z.object({
   destination: z.string().min(1, "Where are you going?"),
   title: z.string().optional(),
+  origin: z.string().optional(),
+  transport_mode: z.enum(["driving", "transit"]).optional(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
   // The input converts "" → undefined via setValueAs (see NewTripDialog), so

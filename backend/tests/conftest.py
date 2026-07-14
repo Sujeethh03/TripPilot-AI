@@ -64,6 +64,12 @@ def mock_agent_llms(monkeypatch: pytest.MonkeyPatch) -> Callable[[], Itinerary]:
     async def _search(query: str, max_results: int = 5) -> None:
         return None
 
+    async def _hotels(destination: str) -> list:
+        return []
+
+    async def _leg(trip: object) -> None:
+        return None
+
     async def _synthesize(trip: object, skeletons: object, research: object) -> Itinerary:
         return valid_itinerary()
 
@@ -75,6 +81,8 @@ def mock_agent_llms(monkeypatch: pytest.MonkeyPatch) -> Callable[[], Itinerary]:
     monkeypatch.setattr(_planner, "_plan", _plan)
     monkeypatch.setattr(_researcher, "fetch_forecast", _fetch)
     monkeypatch.setattr(_researcher, "search_places", _search)
+    monkeypatch.setattr(_researcher, "_gather_hotels", _hotels)
+    monkeypatch.setattr(_researcher, "_travel_leg", _leg)
     monkeypatch.setattr(_synth, "_synthesize", _synthesize)
     monkeypatch.setattr(_refiner, "_refine", _refine)
 

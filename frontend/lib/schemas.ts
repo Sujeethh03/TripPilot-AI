@@ -18,19 +18,47 @@ export const blockSchema = z.object({
   notes: z.string(),
 });
 
+export const weatherSchema = z.object({
+  min_temp_c: z.number().nullable(),
+  max_temp_c: z.number().nullable(),
+  condition: z.string(),
+});
+
 export const daySchema = z.object({
   day: z.number(),
   blocks: z.array(blockSchema),
+  // Filled from the weather MCP; absent for days beyond the forecast window.
+  weather: weatherSchema.nullish(),
+});
+
+export const travelLegSchema = z.object({
+  origin: z.string(),
+  destination: z.string(),
+  mode: z.string(),
+  distance_km: z.number().nullable(),
+  duration_min: z.number().nullable(),
+});
+
+export const hotelSchema = z.object({
+  name: z.string(),
+  area: z.string(),
+  rating: z.number().nullable(),
 });
 
 export const itinerarySchema = z.object({
   destination: z.string(),
+  origin: z.string().nullish(),
+  travel: travelLegSchema.nullish(),
+  hotels: z.array(hotelSchema).default([]),
   days: z.array(daySchema),
   total_cost_inr: z.number(),
 });
 
 export type Block = z.infer<typeof blockSchema>;
 export type Day = z.infer<typeof daySchema>;
+export type Weather = z.infer<typeof weatherSchema>;
+export type TravelLeg = z.infer<typeof travelLegSchema>;
+export type Hotel = z.infer<typeof hotelSchema>;
 export type Itinerary = z.infer<typeof itinerarySchema>;
 
 // --- Validation (backend app/schemas/planning.py) ----------------------------
@@ -60,6 +88,8 @@ export const tripSchema = z.object({
   id: z.string(),
   title: z.string().nullable(),
   destination: z.string().nullable(),
+  origin: z.string().nullable(),
+  transport_mode: z.string().nullable(),
   start_date: z.string().nullable(),
   end_date: z.string().nullable(),
   budget_inr: z.number().nullable(),

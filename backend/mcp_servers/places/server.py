@@ -25,3 +25,14 @@ async def search_places(query: str, max_results: int = 5) -> PlacesResult:
         max_results: Maximum number of places to return (1-20).
     """
     return await _client.search(query, max_results=max_results)
+
+
+@mcp.tool
+async def search_hotels(location: str, max_results: int = 4) -> PlacesResult:
+    """Find hotels / places to stay near a location.
+
+    Args:
+        location: Where to stay, e.g. "Munnar" or "Fort Kochi".
+        max_results: Maximum number of hotels to return (1-20).
+    """
+    return await _client.search_hotels(location, max_results=max_results)

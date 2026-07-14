@@ -33,6 +33,7 @@ from app.models import Trip
 from app.repositories.conversation_repository import ConversationRepository, MessageRepository
 from app.repositories.trip_repository import TripRepository
 from app.repositories.user_repository import UserRepository
+from app.schemas.itinerary import Itinerary
 
 router = APIRouter()
 
@@ -89,12 +90,14 @@ async def _persist_turn(
             content=user_content,
             agent_events=None,
         )
-        await messages.add(
-            conversation_id=conversation.id,
-            role="assistant",
-            content="\n\n".join(assistant_texts),
-            agent_events={"events": events},
-        )
+        # Skip empty assistant rows (would render as a blank bubble on reload).
+        if assistant_texts:
+            await messages.add(
+                conversation_id=conversation.id,
+                role="assistant",
+                content="\n\n".join(assistant_texts),
+                agent_events={"events": events},
+            )
 
         if itinerary is not None:
             trip = await session.get(Trip, trip_uuid)
@@ -110,6 +113,9 @@ def _trip_context(trip: Trip) -> str | None:
     parts: list[str] = []
     if trip.destination:
         parts.append(f"Destination: {trip.destination}")
+    if trip.origin:
+        mode = trip.transport_mode or "driving"
+        parts.append(f"Travelling from: {trip.origin} (by {mode})")
     if trip.start_date and trip.end_date:
         days = (trip.end_date - trip.start_date).days + 1
         parts.append(f"Dates: {trip.start_date} to {trip.end_date} ({days} days)")
@@ -123,6 +129,18 @@ def _trip_context(trip: Trip) -> str | None:
         "The traveller already provided these trip details in the booking form; "
         "treat them as their stated request and do not ask for them again unless "
         "they change. " + "; ".join(parts) + "."
+    )
+
+
+def _plan_summary(itinerary: Itinerary) -> str:
+    """A short, friendly acknowledgment for a planning turn (facts come straight
+    from the itinerary — days/cost — so nothing is invented)."""
+    days = len(itinerary.days)
+    dest = itinerary.destination or "your trip"
+    cost = f" for around ₹{itinerary.total_cost_inr:,}" if itinerary.total_cost_inr else ""
+    return (
+        f"I've put together a {days}-day {dest} itinerary{cost}. "
+        "It's on the right — tell me what you'd like to change."
     )
 
 
@@ -160,6 +178,17 @@ async def _run_turn(
 
         snapshot = await graph.aget_state(config)
         itinerary = snapshot.values.get("itinerary")
+
+        # Planning routes stream the itinerary but no chat text, which reads as
+        # "the AI didn't reply". If the turn produced/updated an itinerary and
+        # said nothing, add a short acknowledgment so the chat always responds.
+        if isinstance(itinerary, Itinerary) and not assistant_texts:
+            summary = _plan_summary(itinerary)
+            event = {"type": "assistant_message", "content": summary}
+            events_log.append(event)
+            assistant_texts.append(summary)
+            await ws.send_json(event)
+
         await ws.send_json(complete_event(itinerary))
     except Exception as exc:  # surface failures to the client, keep socket open
         await ws.send_json({"type": "error", "message": str(exc)})

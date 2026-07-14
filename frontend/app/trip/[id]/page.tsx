@@ -25,14 +25,27 @@ function TripView({ tripId }: { tripId: string }) {
   const reset = useChatStore((s) => s.reset);
   const sendUserMessage = useChatStore((s) => s.sendUserMessage);
   const kickedOff = useRef(false);
+  const seeded = useRef(false);
 
-  // Seed the store from server history once it (and the trip) load.
+  // Seed the store from server history ONCE per trip. After this the store owns
+  // the live thread; reseeding on later trip/message refetches (e.g. after a
+  // plan turn updates the itinerary) would clobber messages streamed this
+  // session. Persisted truth is re-read on the next mount.
   useEffect(() => {
-    if (messages && trip) seed(messages, trip.itinerary);
+    if (seeded.current || !messages || !trip) return;
+    seed(messages, trip.itinerary);
+    seeded.current = true;
   }, [messages, trip, seed]);
 
-  // Clear live state when leaving the trip.
-  useEffect(() => reset, [tripId, reset]);
+  // Clear live state (and the per-trip guards) when the trip changes or on
+  // unmount, so a newly opened trip seeds and can auto-kick off again.
+  useEffect(() => {
+    return () => {
+      reset();
+      seeded.current = false;
+      kickedOff.current = false;
+    };
+  }, [tripId, reset]);
 
   // Fresh trip opened via "Create & start planning" (?start=1): kick off the
   // first turn automatically so the form details plan straight away.

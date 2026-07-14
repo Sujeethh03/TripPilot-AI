@@ -38,6 +38,18 @@ class GooglePlacesClient:
         self._http = http_client
 
     async def search(self, query: str, max_results: int = 5) -> PlacesResult:
+        return await self._text_search(query, max_results)
+
+    async def search_hotels(self, location: str, max_results: int = 4) -> PlacesResult:
+        """Find lodging near a location. Uses the Places `lodging` type so results
+        are actual hotels rather than generic matches for the word 'hotel'."""
+        return await self._text_search(
+            f"hotels in {location}", max_results, included_type="lodging"
+        )
+
+    async def _text_search(
+        self, query: str, max_results: int, included_type: str | None = None
+    ) -> PlacesResult:
         if not self._api_key:
             raise PlacesError("GOOGLE_MAPS_KEY is not set")
 
@@ -46,7 +58,12 @@ class GooglePlacesClient:
             "X-Goog-FieldMask": _FIELD_MASK,
             "Content-Type": "application/json",
         }
-        body = {"textQuery": query, "maxResultCount": max(1, min(max_results, 20))}
+        body: dict[str, Any] = {
+            "textQuery": query,
+            "maxResultCount": max(1, min(max_results, 20)),
+        }
+        if included_type is not None:
+            body["includedType"] = included_type
         try:
             if self._http is not None:
                 resp = await self._http.post(_SEARCH_URL, headers=headers, json=body)

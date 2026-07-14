@@ -42,10 +42,22 @@ async def _refine(
     return result or itinerary
 
 
+def _carry_facts(old: Itinerary, new: Itinerary) -> None:
+    """Preserve factual grounding (travel leg, hotels, origin, per-day weather)
+    across a refinement — these come from MCP data, not the LLM, so a revised
+    plan must not silently drop or invent them."""
+    new.origin = old.origin
+    new.travel = old.travel
+    new.hotels = old.hotels
+    for i, day in enumerate(new.days):
+        day.weather = old.days[i].weather if i < len(old.days) else None
+
+
 async def refiner(state: ConversationState) -> dict[str, Any]:
     count = state.get("refinement_count", 0) + 1
     itinerary = state.get("itinerary")
     if itinerary is None:
         return {"refinement_count": count}
     revised = await _refine(itinerary, state.get("validation"), state.get("messages", []))
+    _carry_facts(itinerary, revised)
     return {"itinerary": revised, "refinement_count": count}

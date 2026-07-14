@@ -35,7 +35,9 @@ class ResearchBundle(BaseModel):
     """
 
     candidate_places: list[dict[str, Any]] = Field(default_factory=list)
+    hotels: list[dict[str, Any]] = Field(default_factory=list)
     weather_by_day: dict[str, Any] = Field(default_factory=dict)
+    travel_leg: dict[str, Any] | None = None  # origin -> destination, from directions MCP
     transport_options: list[dict[str, Any]] = Field(default_factory=list)
     bus_routes: list[dict[str, Any]] = Field(default_factory=list)
 

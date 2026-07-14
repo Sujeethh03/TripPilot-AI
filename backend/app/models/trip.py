@@ -31,6 +31,8 @@ class Trip(Base):
     )
     title: Mapped[str | None] = mapped_column(String(255))
     destination: Mapped[str | None] = mapped_column(String(255))
+    origin: Mapped[str | None] = mapped_column(String(255))  # starting point (own transport)
+    transport_mode: Mapped[str | None] = mapped_column(String(32))  # driving | transit
     start_date: Mapped[date | None] = mapped_column()
     end_date: Mapped[date | None] = mapped_column()
     budget_inr: Mapped[int | None] = mapped_column()

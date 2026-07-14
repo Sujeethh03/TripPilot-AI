@@ -104,6 +104,8 @@ export const authApi = {
 export type TripCreate = {
   title?: string;
   destination?: string;
+  origin?: string;
+  transport_mode?: string;
   start_date?: string;
   end_date?: string;
   budget_inr?: number;

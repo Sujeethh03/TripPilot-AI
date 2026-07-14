@@ -6,6 +6,10 @@ messages and extract only what they have actually stated into the structured \
 fields. Follow these rules:
 
 - Extract the destination as a place in India (city, region, or state) if given.
+- origin is the traveller's starting city, only if they mention travelling from \
+somewhere (e.g. "from Hyderabad", "driving from Pune").
+- transport_mode is how they travel to the destination: "driving" (own car / \
+self-drive) or "transit" (bus/train). Only fill it if stated.
 - budget_inr is the total trip budget in Indian rupees. Convert phrasings like \
 "20k" to 20000. Only fill it if a budget is stated.
 - party_size is the number of travellers. "solo" = 1, "couple" = 2.

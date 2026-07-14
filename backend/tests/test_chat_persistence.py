@@ -73,6 +73,49 @@ async def test_persist_turn_writes_messages_and_itinerary(
 
 
 @pytest.mark.asyncio
+async def test_persist_turn_skips_empty_assistant(
+    db_sessionmaker: async_sessionmaker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No assistant text -> only the user row is written (no blank bubble)."""
+    monkeypatch.setattr(chat, "get_sessionmaker", lambda: db_sessionmaker)
+
+    async with db_sessionmaker() as session:
+        user = User(email="empty@trippilot.ai", hashed_password="x")
+        session.add(user)
+        await session.flush()
+        trip = Trip(user_id=user.id, destination="Goa")
+        session.add(trip)
+        await session.flush()
+        await ConversationRepository(session).create(trip_id=trip.id, thread_id=trip.id)
+        await session.commit()
+        trip_id = trip.id
+
+    await chat._persist_turn(
+        str(trip_id), "hi", assistant_texts=[], events=[], itinerary=None
+    )
+
+    async with db_sessionmaker() as session:
+        roles = [
+            m.role
+            for m in (
+                await session.execute(
+                    select(Message)
+                    .join(Conversation, Message.conversation_id == Conversation.id)
+                    .where(Conversation.trip_id == trip_id)
+                )
+            )
+            .scalars()
+            .all()
+        ]
+        assert roles == ["user"]
+
+
+def test_plan_summary_uses_itinerary_facts() -> None:
+    summary = chat._plan_summary(valid_itinerary())
+    assert "Kerala" in summary and "day" in summary
+
+
+@pytest.mark.asyncio
 async def test_persist_turn_noops_for_unknown_thread(
     db_sessionmaker: async_sessionmaker, monkeypatch: pytest.MonkeyPatch
 ) -> None:

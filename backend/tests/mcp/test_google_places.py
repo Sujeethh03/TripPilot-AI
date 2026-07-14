@@ -66,3 +66,22 @@ async def test_malformed_payload_yields_no_places() -> None:
     async with http:
         result = await client.search("kerala")
     assert result.places == []
+
+
+async def test_search_hotels_uses_lodging_type() -> None:
+    captured: dict = {}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        import json
+
+        captured.update(json.loads(req.content))
+        return httpx.Response(200, json=_CANNED)
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    client = GooglePlacesClient(api_key="test-key", http_client=http)
+    async with http:
+        result = await client.search_hotels("Munnar", max_results=4)
+
+    assert captured["textQuery"] == "hotels in Munnar"
+    assert captured["includedType"] == "lodging"
+    assert len(result.places) == 2

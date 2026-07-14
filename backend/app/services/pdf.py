@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fpdf import FPDF
 
-from app.schemas.itinerary import Itinerary
+from app.schemas.itinerary import Itinerary, Weather
 
 # fpdf2's core fonts are latin-1 only; rupee/other glyphs would raise. Render
 # amounts as "Rs." and strip anything outside latin-1 defensively.
@@ -18,6 +18,20 @@ _RUPEE = "Rs."
 
 def _latin1(text: str) -> str:
     return text.encode("latin-1", "replace").decode("latin-1")
+
+
+def _hours(minutes: float) -> str:
+    h, m = divmod(round(minutes), 60)
+    return f"{h}h {m}m" if h else f"{m}m"
+
+
+def _weather_line(weather: Weather) -> str:
+    parts = []
+    if weather.max_temp_c is not None and weather.min_temp_c is not None:
+        parts.append(f"{round(weather.max_temp_c)}/{round(weather.min_temp_c)}C")
+    if weather.condition:
+        parts.append(weather.condition)
+    return " ".join(parts)
 
 
 def render_itinerary_pdf(itinerary: Itinerary, *, title: str | None = None) -> bytes:
@@ -37,11 +51,35 @@ def render_itinerary_pdf(itinerary: Itinerary, *, title: str | None = None) -> b
         new_x="LMARGIN",
         new_y="NEXT",
     )
+
+    if itinerary.travel is not None:
+        t = itinerary.travel
+        leg = f"Getting there: {t.origin} to {t.destination} by {t.mode}"
+        if t.distance_km is not None and t.duration_min is not None:
+            leg += f" ({round(t.distance_km)} km, {_hours(t.duration_min)})"
+        pdf.cell(0, 8, _latin1(leg), new_x="LMARGIN", new_y="NEXT")
+
+    if itinerary.hotels:
+        pdf.ln(1)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 8, _latin1("Where to stay"), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 11)
+        for hotel in itinerary.hotels:
+            line = f"  - {hotel.name}"
+            if hotel.rating is not None:
+                line += f" ({hotel.rating})"
+            if hotel.area:
+                line += f" - {hotel.area}"
+            pdf.multi_cell(0, 6, _latin1(line), new_x="LMARGIN", new_y="NEXT")
+
     pdf.ln(4)
 
     for day in itinerary.days:
         pdf.set_font("Helvetica", "B", 14)
-        pdf.multi_cell(0, 9, _latin1(f"Day {day.day}"), new_x="LMARGIN", new_y="NEXT")
+        heading = f"Day {day.day}"
+        if day.weather is not None:
+            heading += f"   {_weather_line(day.weather)}"
+        pdf.multi_cell(0, 9, _latin1(heading), new_x="LMARGIN", new_y="NEXT")
 
         for block in day.blocks:
             pdf.set_font("Helvetica", "", 11)

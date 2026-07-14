@@ -53,6 +53,8 @@ async def intake(state: ConversationState) -> dict[str, Any]:
     extraction = await _extract(state.get("messages", []))
     trip = TripRequest(
         destination=extraction.destination,
+        origin=extraction.origin,
+        transport_mode=extraction.transport_mode,
         duration_days=extraction.duration_days,
         budget_inr=extraction.budget_inr,
         party_size=extraction.party_size,
