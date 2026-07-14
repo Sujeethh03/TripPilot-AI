@@ -180,15 +180,6 @@ Optional in `.env.local`: `NEXT_PUBLIC_GOOGLE_MAPS_KEY` (Maps JS + Geocoding API
 
 ---
 
-## Testing & quality
-
-```bash
-# Backend — pytest suite, lint, strict type-check
-cd backend && uv run pytest && uv run ruff check . && uv run mypy app mcp_servers
-
-# Frontend — lint, type-check, production build
-cd frontend && pnpm lint && pnpm exec tsc --noEmit && pnpm build
-```
 
 The backend suite covers the agent nodes (LLM/tool boundaries mocked), the MCP adapters (defensive parsing), the REST + WebSocket layers, persistence, and PDF export.
 
