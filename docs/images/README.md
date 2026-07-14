@@ -1,9 +1,11 @@
-# Screenshots for the README
+# Screenshots used in the top-level README
 
-Drop image/GIF files here, then uncomment the matching lines in ../README.md:
+| File | Shown in README as |
+|---|---|
+| `hero.png` | Hero — split chat + itinerary (Coorg → Chennai) |
+| `agents.png` | Live agent activity + validator warning (Goa) |
+| `itinerary.png` | "Where to stay" + day-by-day blocks |
+| `conversation.png` | Conversational Q&A + per-day weather |
+| `dashboard.png` | Trips dashboard |
 
-- hero.png        — split chat + itinerary trip view (the main shot)
-- demo.gif        — a plan streaming in (agents working -> itinerary -> validation)
-- itinerary.png   — itinerary panel: weather, travel banner, hotels, route map
-- pdf.png         — a page of the exported PDF
-- dashboard.png   — the trips dashboard (optional)
+To refresh a shot, replace the file here (keep the same name) — the README references these paths directly.

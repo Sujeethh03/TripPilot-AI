@@ -6,29 +6,21 @@ You talk in plain language — *"5 days in Kerala, ₹20k, from Kochi by car, lo
 
 Built to demonstrate production-shaped agentic architecture: LangGraph orchestration, MCP tool servers, deterministic validation, streaming, and a typed end-to-end contract.
 
-<!-- HERO IMAGE — add docs/images/hero.png (the split chat + itinerary trip view) and uncomment:
 <p align="center">
-  <img src="docs/images/hero.png" alt="TripPilot — chat and itinerary side by side" width="900">
+  <img src="docs/images/hero.png" alt="TripPilot — chat on the left, live itinerary with route map, travel leg, budget, and hotels on the right" width="900">
 </p>
--->
 
 ---
 
-## Demo
+## Screenshots
 
-<!-- DEMO GIF — add docs/images/demo.gif (a plan streaming in) and uncomment:
-<p align="center">
-  <img src="docs/images/demo.gif" alt="Planning a trip: agents research, build, and validate an itinerary live" width="900">
-</p>
--->
+Chat and refine on the left; a live, validated itinerary — route map, travel leg, budget, weather, and hotels — on the right.
 
-<!-- Screenshots — add the files under docs/images/ and uncomment:
-| Trip view | Exported PDF |
+| Agents working live | Day-by-day itinerary |
 |---|---|
-| <img src="docs/images/itinerary.png" alt="Itinerary with weather, travel banner, hotels, and route map" width="420"> | <img src="docs/images/pdf.png" alt="Exported itinerary PDF" width="420"> |
--->
-
-_Screenshots to add: see [`docs/images/README.md`](docs/images/README.md)._
+| <img src="docs/images/agents.png" alt="Live agent activity: intake, planner, researcher, and a validator feasibility warning" width="440"> | <img src="docs/images/itinerary.png" alt="Where to stay plus hour-by-hour day blocks with costs" width="440"> |
+| **Ask questions & refine in chat** | **Your trips dashboard** |
+| <img src="docs/images/conversation.png" alt="Conversational Q&A about the trip with per-day weather on the itinerary" width="440"> | <img src="docs/images/dashboard.png" alt="Dashboard listing saved trips" width="440"> |
 
 ---
 
@@ -202,10 +194,3 @@ The backend suite covers the agent nodes (LLM/tool boundaries mocked), the MCP a
 
 ---
 
-## Honest limitations
-
-- **No live bookings, prices, or availability** — hotels and places are grounded suggestions with ratings, not reservations (that needs paid APIs like Booking/Amadeus).
-- **Travel legs are drive or bus/train transit only** (Google Directions) — no flights.
-- **Weather is a 5-day forecast** — trips further out get an indicative forecast.
-- **India-focused**, budgets in ₹.
-- Drive-time *between* daily stops isn't enforced yet (planned once itinerary blocks carry coordinates).
