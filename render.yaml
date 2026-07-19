@@ -17,8 +17,10 @@ services:
     runtime: docker
     plan: free
     region: singapore # closest to Indian users + the Google APIs we call
+    # rootDir sets the Docker build context; dockerfilePath is resolved from
+    # the repo root, not from rootDir — hence the backend/ prefix here.
     rootDir: backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     healthCheckPath: /api/v1/health
     envVars:
       # Render hands out a driver-less postgresql:// URL; Settings coerces it
