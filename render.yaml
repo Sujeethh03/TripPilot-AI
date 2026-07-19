@@ -1,0 +1,57 @@
+# Render blueprint — backend + Postgres. The frontend deploys separately on
+# Vercel (see README §Deploy).
+#
+# Secrets are deliberately NOT in this file. Anything marked `sync: false` is
+# entered once in the Render dashboard and never lives in git.
+
+databases:
+  - name: trippilot-db
+    databaseName: trippilot
+    user: trippilot
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: trippilot-api
+    runtime: docker
+    plan: free
+    region: singapore # closest to Indian users + the Google APIs we call
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/v1/health
+    envVars:
+      # Render hands out a driver-less postgresql:// URL; Settings coerces it
+      # to the asyncpg driver (app/config.py::_use_asyncpg_driver).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trippilot-db
+          property: connectionString
+
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+
+      # Durable conversation memory — LangGraph checkpoints survive restarts,
+      # which matters here because the free plan spins the service down.
+      - key: CHECKPOINTER
+        value: postgres
+
+      # Generated once by Render, then held. Never the dev default.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # The deployed frontend origin, e.g. ["https://trippilot.vercel.app"].
+      # JSON array — pydantic-settings parses list[str] as JSON.
+      - key: CORS_ORIGINS
+        sync: false
+
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENWEATHER_KEY
+        sync: false
+      - key: GOOGLE_MAPS_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false

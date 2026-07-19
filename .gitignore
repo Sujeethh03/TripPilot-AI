@@ -33,3 +33,7 @@ dist/
 .claude/
 CLAUDE.md
 PROGRESS.md
+
+# Internal planning docs (kept local, not published)
+PROJECT_PLAN.md
+FRONTEND_PLAN.md

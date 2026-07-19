@@ -7,6 +7,7 @@ override what actually varies between environments.
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -51,6 +52,20 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-me-in-production-please-32b+"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
+
+    @field_validator("database_url")
+    @classmethod
+    def _use_asyncpg_driver(cls, value: str) -> str:
+        """Coerce a plain ``postgresql://`` URL to the asyncpg driver.
+
+        Managed hosts (Render, Neon, Heroku) hand out driver-less URLs, but our
+        engine is async. Normalising here means the deploy can wire the host's
+        connection string straight through without hand-editing it.
+        """
+        for prefix in ("postgresql://", "postgres://"):
+            if value.startswith(prefix):
+                return "postgresql+asyncpg://" + value[len(prefix) :]
+        return value
 
     @property
     def postgres_dsn(self) -> str:
