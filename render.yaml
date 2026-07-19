@@ -10,6 +10,10 @@ databases:
     user: trippilot
     plan: free
     postgresMajorVersion: "16"
+    # MUST match the web service's region — `connectionString` is an internal
+    # hostname that only resolves within a region. A mismatch surfaces as
+    # socket.gaierror "Name or service not known" at connect time.
+    region: singapore
 
 services:
   - type: web
