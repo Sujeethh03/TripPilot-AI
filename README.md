@@ -6,7 +6,9 @@ You talk in plain language — *"5 days in Kerala, ₹20k, from Kochi by car, lo
 
 Built to demonstrate production-shaped agentic architecture: LangGraph orchestration, MCP tool servers, deterministic validation, streaming, and a typed end-to-end contract.
 
-**[Live app](#deployment)** · **[Live API health check](https://trippilot-api.onrender.com/api/v1/health)** · **[How it works](#how-it-works)** · **[Deployment](#deployment)**
+### **▶ [Try it live](https://trip-pilot-ai-ashen.vercel.app/)**
+
+[API health check](https://trippilot-api.onrender.com/api/v1/health) · [How it works](#how-it-works) · [Deployment](#deployment)
 
 <p align="center">
   <img src="docs/images/hero.png" alt="TripPilot — chat on the left, live itinerary with route map, travel leg, budget, and hotels on the right" width="900">
@@ -184,40 +186,14 @@ Optional in `.env.local`: `NEXT_PUBLIC_GOOGLE_MAPS_KEY` (Maps JS + Geocoding API
 
 ## Deployment
 
-**Live API:** [`trippilot-api.onrender.com/api/v1/health`](https://trippilot-api.onrender.com/api/v1/health) · **App:** _<!-- VERCEL_URL -->coming soon_
+| | |
+|---|---|
+| **App** | **https://trip-pilot-ai-ashen.vercel.app** — Next.js on Vercel |
+| **API** | [trippilot-api.onrender.com](https://trippilot-api.onrender.com/api/v1/health) — FastAPI in Docker on Render, with PostgreSQL 16 |
 
 > **Heads up on first load:** the backend runs on a free instance that sleeps after 15 minutes idle, so the first request can take ~50 seconds to wake it. After that it's responsive. A full plan takes 30–90s regardless — it's several GPT-4o calls plus live Places/Weather/Directions lookups.
 
-### How it's deployed
-
-```mermaid
-flowchart LR
-    U([Browser]) -->|HTTPS| V["Next.js<br/>Vercel"]
-    V -->|REST + WSS| R
-
-    subgraph R["FastAPI container — Render"]
-      API[uvicorn<br/>REST + WebSocket]
-      LG[LangGraph<br/>orchestrator]
-      M1[weather]
-      M2[places]
-      M3[directions]
-      M4[currency]
-      API --- LG
-      LG -.stdio.-> M1
-      LG -.stdio.-> M2
-      LG -.stdio.-> M3
-      LG -.stdio.-> M4
-    end
-
-    R --> PG[(PostgreSQL 16<br/>Render)]
-    LG --> OA[OpenAI]
-    M1 --> EXT[Google / OpenWeather /<br/>Frankfurter APIs]
-    M2 --> EXT
-    M3 --> EXT
-    M4 --> EXT
-```
-
-Backend is a Docker image defined by [`render.yaml`](render.yaml) — infrastructure as code, so the service, database, and environment are reproducible from the repo rather than dashboard clicks. The frontend is a Vercel project rooted at `frontend/`.
+The backend image is defined by [`render.yaml`](render.yaml) — infrastructure as code, so the service, database, and environment are reproducible from the repo rather than dashboard clicks. All four MCP tool servers run as stdio subprocesses inside that one container, so there's nothing extra to deploy.
 
 ### Engineering notes
 
