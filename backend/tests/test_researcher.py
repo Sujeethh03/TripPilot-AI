@@ -5,7 +5,7 @@ import importlib
 import pytest
 
 from app.agents.nodes.researcher import researcher
-from app.mcp.weather import _extract_text
+from app.mcp.client_pool import _extract_text
 from app.schemas.planning import DaySkeleton
 from app.schemas.trip import TripRequest
 from mcp_servers.places.schemas import Place, PlacesResult

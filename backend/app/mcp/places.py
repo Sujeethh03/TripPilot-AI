@@ -1,4 +1,4 @@
-"""Helper for calling the places MCP tool from agent code.
+"""Helper for calling the places MCP tools from agent code.
 
 Agents reach place data only through the MCP pool (never the upstream API).
 This wraps the tool call and parses its result into the tool's declared
@@ -7,22 +7,14 @@ contract, defensively — a failed tool call yields None, not a crash.
 
 from __future__ import annotations
 
-from app.mcp.client_pool import get_tools
-from app.mcp.weather import _extract_text  # shared MCP result unwrapping
+from app.mcp.client_pool import call_tool
 from mcp_servers.places.schemas import PlacesResult
+
+_SERVER = "places"
 
 
 async def _invoke(tool_name: str, args: dict[str, object]) -> PlacesResult | None:
-    tools = {tool.name: tool for tool in await get_tools()}
-    tool = tools.get(tool_name)
-    if tool is None:
-        return None
-    try:
-        raw = await tool.ainvoke(args)
-    except Exception:
-        return None
-
-    text = _extract_text(raw)
+    text = await call_tool(_SERVER, tool_name, dict(args))
     if text is None:
         return None
     try:

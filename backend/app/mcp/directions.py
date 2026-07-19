@@ -7,10 +7,10 @@ defensively — a failed tool call yields None, not a crash.
 
 from __future__ import annotations
 
-from app.mcp.client_pool import get_tools
-from app.mcp.weather import _extract_text  # shared MCP result unwrapping
+from app.mcp.client_pool import call_tool
 from mcp_servers.directions.schemas import DirectionsResult
 
+_SERVER = "directions"
 _TOOL = "get_directions"
 
 
@@ -18,18 +18,9 @@ async def get_directions(
     origin: str, destination: str, mode: str = "driving"
 ) -> DirectionsResult | None:
     """Get travel distance/time via the directions MCP tool, or None on failure."""
-    tools = {tool.name: tool for tool in await get_tools()}
-    tool = tools.get(_TOOL)
-    if tool is None:
-        return None
-    try:
-        raw = await tool.ainvoke(
-            {"origin": origin, "destination": destination, "mode": mode}
-        )
-    except Exception:
-        return None
-
-    text = _extract_text(raw)
+    text = await call_tool(
+        _SERVER, _TOOL, {"origin": origin, "destination": destination, "mode": mode}
+    )
     if text is None:
         return None
     try:

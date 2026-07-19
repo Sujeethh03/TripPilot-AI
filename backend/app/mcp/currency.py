@@ -7,10 +7,10 @@ defensively — a failed tool call yields None, not a crash.
 
 from __future__ import annotations
 
-from app.mcp.client_pool import get_tools
-from app.mcp.weather import _extract_text  # shared MCP result unwrapping
+from app.mcp.client_pool import call_tool
 from mcp_servers.currency.schemas import ConversionResult
 
+_SERVER = "currency"
 _TOOL = "convert_currency"
 
 
@@ -18,18 +18,11 @@ async def convert_currency(
     amount: float, from_currency: str, to_currency: str = "INR"
 ) -> ConversionResult | None:
     """Convert an amount via the currency MCP tool, or None on failure."""
-    tools = {tool.name: tool for tool in await get_tools()}
-    tool = tools.get(_TOOL)
-    if tool is None:
-        return None
-    try:
-        raw = await tool.ainvoke(
-            {"amount": amount, "from_currency": from_currency, "to_currency": to_currency}
-        )
-    except Exception:
-        return None
-
-    text = _extract_text(raw)
+    text = await call_tool(
+        _SERVER,
+        _TOOL,
+        {"amount": amount, "from_currency": from_currency, "to_currency": to_currency},
+    )
     if text is None:
         return None
     try:
